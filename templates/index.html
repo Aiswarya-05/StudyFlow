@@ -1,0 +1,529 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyFlow - Study Planner Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">S</div>
+            <div>
+                <h2>StudyFlow</h2>
+                <p>Study Planner</p>
+            </div>
+        </div>
+
+        <p class="nav-label">WORKSPACE</p>
+
+        <nav class="navigation">
+            <a class="nav-link active" href="{{ url_for('home') }}">🏠 Dashboard</a>
+            <a class="nav-link" href="{{ url_for('home') }}#planner">📝 Create Plan</a>
+            <a class="nav-link" href="{{ url_for('home') }}#daily-tasks">☑ Daily Tasks</a>
+            <a class="nav-link" href="{{ url_for('home') }}#schedule">📅 My Schedule</a>
+            <a class="nav-link" href="{{ url_for('home') }}#history">📚 Plan History</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-note">
+                <span>💡</span>
+                <h3>Small steps every day</h3>
+                <p>Consistency is the key to success.</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- Header and Clock -->
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">YOUR PERSONAL STUDY SPACE</p>
+                <h1>Dashboard</h1>
+            </div>
+
+            <div class="clock-card">
+                <span>🕒</span>
+                <div>
+                    <strong id="live-clock">--:--:--</strong>
+                    <p id="live-date">Loading date...</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Welcome Banner -->
+        <section class="welcome-banner">
+            <div>
+                <p class="welcome-tag">YOUR DAILY PROGRESS</p>
+                <h2>Make today count! ✨</h2>
+                <p>Plan your study hours, organize your tasks, and achieve your goals one step at a time.</p>
+                <a href="#planner" class="primary-button">Create Study Plan →</a>
+            </div>
+            <div class="welcome-art">📚</div>
+        </section>
+
+        <!-- Statistics -->
+        <section class="stats-grid">
+
+            <div class="stat-card">
+                <div class="stat-icon purple">⏱</div>
+                <p>Planned Study Time</p>
+                <h2>
+                    {% if schedule %}
+                        {{ "%.1f"|format(total_minutes / 60) }} <span>hours</span>
+                    {% else %}
+                        0 <span>hours</span>
+                    {% endif %}
+                </h2>
+                <small>For the displayed study plan</small>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon orange">📖</div>
+                <p>Subjects in Plan</p>
+                <h2>{{ schedule|length if schedule else 0 }}</h2>
+                <small>Subjects in the displayed plan</small>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon green">✅</div>
+                <p>Study Progress</p>
+                <h2>
+                    {% set completed_sessions = schedule|selectattr('completed', 'equalto', 1)|list|length if schedule else 0 %}
+                    {{ ((completed_sessions / (schedule|length)) * 100)|round|int if schedule else 0 }}<span>%</span>
+                </h2>
+                <small>Study sessions completed</small>
+            </div>
+
+        </section>
+
+        <!-- Daily Task Checklist -->
+        <section class="content-section" id="daily-tasks">
+
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">STAY ORGANIZED</p>
+                    <h2>Daily Task Checklist</h2>
+                    <p class="section-description">Add tasks and check them off when finished.</p>
+                </div>
+                <span class="section-emoji">☑️</span>
+            </div>
+
+            <div class="panel task-panel">
+
+                <!-- Add Task Form -->
+                <form action="{{ url_for('add_daily_task') }}"
+                      method="POST"
+                      class="task-form">
+
+<div class="form-group date-group">
+    <label for="task_date">Task date</label>
+    <input type="date"
+           id="task_date"
+           name="task_date"
+           value="{{ task_date }}"
+           required>
+</div>
+
+<div class="form-group task-input-group">
+    <label for="task">What do you need to do?</label>
+    <input type="text"
+           id="task"
+           name="task"
+           maxlength="200"
+           placeholder="Example: Practice Java arrays"
+           required>
+</div>
+
+<!-- NEW: Priority -->
+<div class="form-group">
+    <label for="task-priority">Priority</label>
+    <select id="task-priority" name="priority">
+        <option value="High">High</option>
+        <option value="Medium" selected>Medium</option>
+        <option value="Low">Low</option>
+    </select>
+</div>
+
+<!-- NEW: Deadline -->
+<div class="form-group">
+    <label for="task-deadline">Deadline</label>
+    <input type="date"
+           id="task-deadline"
+           name="deadline">
+</div>
+
+<!-- NEW: Reminder -->
+<div class="form-group">
+    <label for="task-reminder">Reminder</label>
+    <input type="datetime-local"
+           id="task-reminder"
+           name="reminder_at">
+</div>
+
+<button type="submit" class="primary-button task-add-button">
+    + Add Task
+</button>
+</form>
+
+
+                <!-- Selected Date -->
+                <div class="task-date-navigation">
+                    <div>
+                        <h3>
+                            {% if task_date == today %}
+                                Today's Tasks
+                            {% else %}
+                                Tasks for {{ task_date }}
+                            {% endif %}
+                        </h3>
+                        <p>{{ daily_tasks|length }} task(s) scheduled</p>
+                    </div>
+
+                    {% if task_date != today %}
+                        <a class="secondary-button"
+                           href="{{ url_for('home') }}#daily-tasks">
+                            View Today
+                        </a>
+                    {% endif %}
+                </div>
+
+                <!-- Task Progress Calculation -->
+                {% set completed_tasks = daily_tasks|selectattr('completed', 'equalto', 1)|list|length %}
+                {% set total_tasks = daily_tasks|length %}
+                {% set task_percentage = ((completed_tasks / total_tasks) * 100)|round|int if total_tasks else 0 %}
+
+                <!-- Task Progress Bar -->
+                <div class="task-progress">
+                    <div class="task-progress-label">
+                        <span>Daily completion</span>
+                        <strong>{{ completed_tasks }}/{{ total_tasks }} completed</strong>
+                    </div>
+
+                    <div class="progress-track">
+                        <div class="progress-fill"
+                             data-progress="{{ task_percentage }}"></div>
+                    </div>
+                </div>
+
+                
+<!-- Task List -->
+<div class="task-list">
+    {% for task in daily_tasks %}
+
+        <div class="task-item {% if task['completed'] %}task-completed{% endif %}">
+
+            <!-- Complete or Undo Task -->
+            <form action="{{ url_for('toggle_daily_task', task_id=task['id']) }}"
+                  method="POST"
+                  class="task-toggle-form">
+                <input type="checkbox"
+                       aria-label="Mark task complete"
+                       {% if task['completed'] %}checked{% endif %}
+                       onchange="this.form.submit()">
+            </form>
+
+            <!-- Task Details -->
+            <div class="task-text">
+                <span>{{ task['task'] }}</span>
+
+                <div class="task-details">
+                    <span class="priority-{{ (task['priority'] or 'Medium') | lower }}">
+                        {{ task['priority'] or 'Medium' }} Priority
+                    </span>
+
+                    {% if task['deadline'] %}
+                        {% if not task['completed'] and task['deadline'] < today %}
+                            <span class="task-deadline deadline-overdue">
+                                ⚠️ Overdue: {{ task['deadline'] }}
+                            </span>
+                        {% elif not task['completed'] and task['deadline'] == today %}
+                            <span class="task-deadline deadline-today">
+                                📅 Due today: {{ task['deadline'] }}
+                            </span>
+                        {% else %}
+                            <span class="task-deadline">
+                                Deadline: {{ task['deadline'] }}
+                            </span>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if task['reminder_at'] %}
+                        <span>
+                            Reminder: {{ task['reminder_at'].replace('T', ' ') }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if task['completed'] %}
+                    <small>Completed ✓</small>
+                {% else %}
+                    <small>Pending</small>
+                {% endif %}
+
+                <!-- Edit Task -->
+                <a class="edit-task-link"
+                   href="{{ url_for('edit_daily_task', task_id=task['id']) }}">
+                    ✏️ Edit
+                </a>
+            </div>
+
+            <!-- Delete Task -->
+            <form action="{{ url_for('delete_daily_task', task_id=task['id']) }}"
+                  method="POST"
+                  onsubmit="return confirm('Are you sure you want to delete this task?');">
+                <button type="submit"
+                        class="delete-task-button"
+                        title="Delete task">
+                    🗑️ Delete
+                </button>
+            </form>
+
+        </div>
+
+    {% else %}
+        <div class="empty-tasks">
+            <span>🗒️</span>
+            <h3>No tasks yet</h3>
+            <p>Add your first task above and start making progress!</p>
+        </div>
+    {% endfor %}
+</div>
+
+           
+
+        <!-- Create Study Plan -->
+        <section class="content-section" id="planner">
+
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">PLAN YOUR LEARNING</p>
+                    <h2>Create a Study Plan</h2>
+                    <p class="section-description">Divide your available time across your subjects.</p>
+                </div>
+                <span class="section-emoji">📝</span>
+            </div>
+
+            <div class="panel">
+
+                {% if error %}
+                    <div class="error-message">{{ error }}</div>
+                {% endif %}
+
+                <form action="{{ url_for('home') }}"
+                      method="POST"
+                      class="planner-form">
+
+                    <div class="form-group">
+                        <label for="hours">Available study hours</label>
+                        <input type="number"
+                               id="hours"
+                               name="hours"
+                               min="0.1"
+                               max="24"
+                               step="0.1"
+                               value="{{ hours }}"
+                               placeholder="Example: 4"
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="subjects">Subjects</label>
+                        <input type="text"
+                               id="subjects"
+                               name="subjects"
+                               value="{{ subjects }}"
+                               placeholder="Java, SQL, Python"
+                               required>
+                        <small>Separate subjects with commas.</small>
+                    </div>
+
+                    <button type="submit" class="primary-button">
+                        Generate My Plan →
+                    </button>
+                </form>
+
+            </div>
+        </section>
+
+        <!-- Study Schedule -->
+        {% if schedule %}
+
+            <section class="content-section" id="schedule">
+
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">YOUR GENERATED PLAN</p>
+                        <h2>My Study Schedule</h2>
+                        <p class="section-description">Mark each session complete as you finish it.</p>
+                    </div>
+                    <span class="section-emoji">📅</span>
+                </div>
+
+                <div class="panel">
+
+                    <div class="schedule-summary">
+                        <span>Plan #{{ plan_id }}</span>
+                        <strong>{{ "%.1f"|format(total_minutes / 60) }} hours planned</strong>
+                    </div>
+
+                    <!-- Study Progress Calculation -->
+                    {% set done_count = schedule|selectattr('completed', 'equalto', 1)|list|length %}
+                    {% set session_count = schedule|length %}
+                    {% set progress = ((done_count / session_count) * 100)|round|int if session_count else 0 %}
+
+                    <!-- Study Progress Bar -->
+                    <div class="task-progress">
+                        <div class="task-progress-label">
+                            <span>Study progress</span>
+                            <strong>{{ progress }}%</strong>
+                        </div>
+
+                        <div class="progress-track">
+                            <div class="progress-fill"
+                                 data-progress="{{ progress }}"></div>
+                        </div>
+                    </div>
+
+                    <!-- Schedule Sessions -->
+                    <div class="schedule-list">
+
+                        {% for item in schedule %}
+
+                            <div class="schedule-item {% if item.completed %}session-completed{% endif %}">
+
+                                <div class="schedule-time">
+                                    <strong>{{ item.start }}</strong>
+                                    <span>to {{ item.end }}</span>
+                                </div>
+
+                                <div class="schedule-subject">
+                                    <h3>{{ item.subject }}</h3>
+                                    <p>{{ item.duration }} minutes</p>
+                                </div>
+
+                                <form action="{{ url_for('toggle_session', session_id=item.id) }}"
+                                      method="POST">
+
+                                    <button type="submit" class="secondary-button">
+                                        {% if item.completed %}
+                                            Undo
+                                        {% else %}
+                                            Mark done
+                                        {% endif %}
+                                    </button>
+
+                                </form>
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+                </div>
+            </section>
+
+        {% endif %}
+
+        <!-- Plan History -->
+        <section class="content-section" id="history">
+
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">YOUR PREVIOUS PLANS</p>
+                    <h2>Plan History</h2>
+                    <p class="section-description">Revisit your recently generated study plans.</p>
+                </div>
+                <span class="section-emoji">📚</span>
+            </div>
+
+            <div class="panel history-list">
+
+                {% for plan in recent_plans %}
+
+                    <a class="history-item"
+                       href="{{ url_for('view_plan', plan_id=plan['id']) }}">
+
+                        <div class="history-icon">📘</div>
+
+                        <div class="history-details">
+                            <strong>Study Plan #{{ plan['id'] }}</strong>
+                            <p>{{ plan['hours'] }} hours · {{ plan['subject_count'] }} subject(s)</p>
+                            <small>{{ plan['created_at'] }}</small>
+                        </div>
+
+                        <div class="history-progress">
+                            {{ plan['completed_count'] }}/{{ plan['subject_count'] }} done
+                        </div>
+
+                        <span class="history-arrow">→</span>
+                    </a>
+
+                {% else %}
+
+                    <div class="empty-tasks">
+                        <p>Your saved study plans will appear here.</p>
+                    </div>
+
+                {% endfor %}
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="page-footer">
+            <p>Made for your learning journey ✨ Keep learning, one day at a time.</p>
+        </footer>
+
+    </main>
+</div>
+
+<!-- JavaScript -->
+<script>
+    // Update the live clock and date.
+    function updateClock() {
+        const now = new Date();
+
+        document.getElementById("live-clock").textContent =
+            now.toLocaleTimeString();
+
+        document.getElementById("live-date").textContent =
+            now.toLocaleDateString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                year: "numeric"
+            });
+    }
+
+    // Set progress-bar widths without dynamic CSS in the HTML.
+    function updateProgressBars() {
+        const progressBars = document.querySelectorAll(
+            ".progress-fill[data-progress]"
+        );
+
+        progressBars.forEach(function (bar) {
+            const value = Number(bar.dataset.progress);
+
+            const percentage = Number.isFinite(value)
+                ? Math.min(100, Math.max(0, value))
+                : 0;
+
+            bar.style.width = percentage + "%";
+        });
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    updateProgressBars();
+</script>
+
+</body>
+</html>
